@@ -1,0 +1,65 @@
+# ------ 
+# Purpose: Vagrantfile to generate 1 Ubuntu VMs with Minikube and Kubectl
+# Changelog:
+#   2020-Apr-28: First version
+# ------
+
+IMAGE_NAME = "bento/ubuntu-18.04"
+
+$script = <<-'SCRIPT'
+sudo useradd -m -d /home/ubuntu -s /bin/sh ubuntu
+echo -e "password\npassword" | sudo passwd ubuntu
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq
+
+# install git
+# -----------
+echo " ### INSTALLING GIT ### "
+sudo apt-get install git -y
+
+# install docker
+# --------------
+echo " ### INSTALLING DOCKER ### "
+sudo DEBIAN_FRONTEND=noninteractive apt-get remove docker docker-engine docker.io containerd runc
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo DEBIAN_FRONTEND=noninteractive add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io
+
+# install minikube
+# ----------------
+echo " ### INSTALLING MINIKUBE ### "
+wget --quiet https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo chmod +x minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y conntrack
+
+# install kubectl
+# ---------------
+echo " ### INSTALLING KUBECTL ### "
+curl -s -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.2/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo install kubectl /usr/local/bin/
+sudo usermod -aG docker vagrant
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+
+    config.vm.provision "shell", inline: $script
+    config.ssh.insert_key = false
+    config.vagrant.plugins = "vagrant-vbguest"
+
+    config.vm.provider "virtualbox" do |v|
+        v.memory = 3072
+        v.cpus = 2
+    end
+      
+    config.vm.define "minikube" do |master|
+        master.vm.box = IMAGE_NAME
+        master.vm.network "private_network", ip: "192.168.50.10"
+        master.vm.hostname = "minikube"
+    end
+
+end

@@ -1,0 +1,35 @@
+# ------ 
+# Purpose: Vagrantfile to generate Harbor VM for testing purpose
+# Change Log: 
+#   2020-05-20  First setup
+# ------
+
+IMAGE_NAME = "bento/ubuntu-18.04"
+N = 2
+
+$script = <<-'SCRIPT'
+sudo useradd -m -d /home/ubuntu -s /bin/sh ubuntu
+echo -e "password\npassword" | sudo passwd ubuntu
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq
+sudo apt-get install git -y
+SCRIPT
+
+Vagrant.configure("2") do |config|
+
+    config.vm.provision "shell", inline: $script
+    config.ssh.insert_key = false
+    config.vagrant.plugins = "vagrant-vbguest"
+
+    config.vm.provider "virtualbox" do |v|
+        v.memory = 1024
+        v.cpus = 2
+    end
+      
+    config.vm.define "harbor" do |master|
+        master.vm.box = IMAGE_NAME
+        master.vm.network "private_network", ip: "192.168.50.11"
+        master.vm.hostname = "harbor"
+    end
+
+end
